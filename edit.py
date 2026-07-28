@@ -1,19 +1,15 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
 
-df = pd.read_csv("Blich-data.csv")
-df = df.replace({0: -1, 1: 1})
+df = pd.read_csv("demo-Blich-data-augmented.csv")
 
-def transform_value(val):
-    if val == 1:
-        return np.random.choice([1.0, 0.7, 0.3, 0.0])
-    elif val == -1:
-        return np.random.choice([-1.0, -0.7, -0.3, 0.0])
-    return val
+X = df.drop("Character", axis=1).astype(float)
+names = df["Character"]
 
-new_df = df.apply(lambda row: row.map(transform_value), axis=1)
-second_df = df.apply(lambda row: row.map(transform_value), axis=1)
-
-final_df = pd.concat([df, new_df, second_df], axis=0, ignore_index=True)
-final_df.to_csv("demo-Blich-data.csv", index=False)
-
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module='sklearn')
+model = RandomForestClassifier(n_estimators=170, random_state=42)
+model.fit(X,names)
+importance = pd.Series(model.feature_importances_, index=X.columns)
+importance.sort_values(ascending=False).to_csv('demo-feature-importance.csv', header=True)
