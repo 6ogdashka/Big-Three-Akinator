@@ -5,29 +5,53 @@ from sklearn.ensemble import RandomForestClassifier
 
 warnings.filterwarnings("ignore", category=UserWarning, module='sklearn')
 
-def active_cosine_similarity(user_vec, matrix):
-    mask = ~np.isnan(user_vec)
-    
-    if mask.sum() == 0:
-        return np.zeros(len(matrix), dtype=float)
-        
-    u_active = user_vec[mask]
-    m_active = matrix[:, mask]
-    
-    dot = np.dot(m_active, u_active)
-    u_norm = np.linalg.norm(u_active)
-    m_norms = np.linalg.norm(m_active, axis=1)
-    
-    denom = u_norm * m_norms
-    return np.divide(dot, denom, out=np.zeros(len(matrix), dtype=float), where=denom!=0)
+VALUE_MAP = {
+    (-1.0, -1.0): 3, (1.0, 1.0): 3,
+    (-1.0, -0.7): 1, (0.7, 1.0): 1, (-0.7, -0.7): 1, (0.7, 0.7): 1, (0.0, 0.0): 1,
+    (-1.0, 0.0): 0,  (1.0, 0.0): 0, (-0.7, 0.0): 0,  (0.7, 0.0): 0,
+    (-1.0, 0.7): -1, (-0.7, 1.0): -1, (-0.7, 0.7): -1,
+    (-1.0, 1.0): -3
+}
 
-def edit_df(df, ans, current_quest):
-    if ans == 1.0:
-        df = df[df[current_quest] >= -0.3]
-    elif ans == -1.0:
-        df = df[df[current_quest] <= 0.3]
+def get_score_point(vec1, vec2):
+    return sum(VALUE_MAP.get(tuple(sorted((x, y))), 0) for x, y in zip(vec1, vec2))
+
+def _get_pair_score(val1: float, val2: float) -> int:
+    """Быстрый поиск балла с учётом порядка элементов"""
+    return VALUE_MAP.get(tuple(sorted((val1, val2))), 0)
+
+def get_interest_point(vec1, vec2):
+    score_12 = sum(VALUE_MAP.get(tuple(sorted((x, y))), 0) for x, y in zip(vec1, vec2))
+
+    score_11 = sum(VALUE_MAP.get((x, x), 0) for x in vec1)
+    score_22 = sum(VALUE_MAP.get((y, y), 0) for y in vec2)
+
+    denominator = np.sqrt(score_11 * score_22)
+    
+    if denominator == 0:
+        return 0.0
         
-    return df.drop(current_quest, axis='columns')
+    return score_12 / denominator
+
+def edit_df(df: pd.DataFrame, quest: str, ans: float, min_ratio: float = 0.30) -> pd.DataFrame:
+    # 1. Накопительная колонка
+    if '_score' not in df.columns:
+        df['_score'] = 0.0
+
+    # 2. Быстрый маппинг для текущего ответа
+    score_map = {val: _get_pair_score(val, ans) for val in (-1.0, -0.7, 0.0, 0.7, 1.0)}
+
+    df['_score'] += df[quest].map(score_map).fillna(0)
+
+    max_score = df['_score'].max()
+    
+    if max_score <= 3:
+        threshold = 0.0  
+    else:
+        threshold = max_score * min_ratio
+
+    # 5. Фильтрация и чистка
+    return df[df['_score'] >= threshold].drop(columns=[quest])
 
 def retrain_model(df):
     X = df.drop('Character', axis=1)
