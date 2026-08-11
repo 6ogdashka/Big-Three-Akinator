@@ -17,7 +17,6 @@ def get_score_point(vec1, vec2):
     return sum(VALUE_MAP.get(tuple(sorted((x, y))), 0) for x, y in zip(vec1, vec2))
 
 def _get_pair_score(val1: float, val2: float) -> int:
-    """Быстрый поиск балла с учётом порядка элементов"""
     return VALUE_MAP.get(tuple(sorted((val1, val2))), 0)
 
 def get_interest_point(vec1, vec2):
@@ -33,38 +32,40 @@ def get_interest_point(vec1, vec2):
         
     return score_12 / denominator
 
-def edit_df(df: pd.DataFrame, quest: str, ans: float, min_ratio: float = 0.30) -> pd.DataFrame:
-    # 1. Накопительная колонка
+def edit_df(df: pd.DataFrame, quest: str, ans: float, step: int = 1) -> pd.DataFrame:
     if '_score' not in df.columns:
+        df = df.copy()
         df['_score'] = 0.0
 
-    # 2. Быстрый маппинг для текущего ответа
     score_map = {val: _get_pair_score(val, ans) for val in (-1.0, -0.7, 0.0, 0.7, 1.0)}
-
     df['_score'] += df[quest].map(score_map).fillna(0)
 
     max_score = df['_score'].max()
     
     if max_score <= 3:
-        threshold = 0.0  
+        threshold = 0.0
     else:
-        threshold = max_score * min_ratio
+        dynamic_ratio = min(0.85, 0.30 + 0.025 * step)
+        threshold = max_score * dynamic_ratio
 
-    # 5. Фильтрация и чистка
     return df[df['_score'] >= threshold].drop(columns=[quest])
 
 def retrain_model(df):
-    X = df.drop('Character', axis=1)
+    X = df.drop(['Character', '_score'], axis=1, errors='ignore')
     
     if X.empty or len(df['Character'].unique()) <= 1:
         return pd.Series(dtype='float64')
         
     names = df['Character']
     
-    model = RandomForestClassifier(n_estimators=70, random_state=42)
+    model = RandomForestClassifier(n_estimators=300, random_state=42)
     model.fit(X, names)
     
     return pd.Series(model.feature_importances_, index=X.columns)
+
+def get_question(fi_df: pd.DataFrame) -> str:
+    top_quest = np.array(fi_df.index[:3])
+    return np.random.choice(top_quest)
 
 def get_user_answer(question_text):
     answers_map = {
