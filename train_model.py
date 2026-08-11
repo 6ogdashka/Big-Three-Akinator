@@ -1,44 +1,57 @@
 import pandas as pd
-import numpy as np
-from utility import edit_df, retrain_model, get_user_answer, active_cosine_similarity
+from utility import retrain_model, get_question, get_user_answer, edit_df
 
-importance = pd.read_csv('demo-feature-importance.csv', index_col=0).squeeze('columns')
-df = pd.read_csv('demo-Blich-data-augmented.csv')
-df_copy = df.copy()
-
-X = df.drop('Character', axis=1)
-matrix_full = df_copy.drop('Character', axis=1).values
-user_responses = pd.Series(np.nan, index=X.columns)
-
-min_questions = 6
-
-while len(importance) > 0:
-    user_vec = user_responses.values
-    scores = active_cosine_similarity(user_vec, matrix_full)
-    current_similarity = scores.max()
+def play_game(original_df):
+    df = original_df.copy()
+    step = 1
     
-    answered_count = (~np.isnan(user_vec)).sum()
+    print("\n--- Новая игра Акинатора запущена! Загадайте персонажа ---")
     
-    if answered_count >= min_questions and current_similarity >= 0.95:
-        if (scores >= 0.95).sum() == 1:
+    while True:
+        fi_series = retrain_model(df)
+        
+        if fi_series.empty or len(fi_series) == 0:
+            print("\nХмм... Кажется, я исчерпал все вопросы или не смог сузить круг персонажей.")
             break
+            
+        question = get_question(fi_series)
+        
+        answer = get_user_answer(question)
+        
+        df = edit_df(df, question, answer, step=step)
+        
+        remaining_characters = df['Character'].unique() if 'Character' in df.columns else []
+        
+        print(f"[Шаг {step}] Осталось возможных персонажей: {len(remaining_characters)}")
+        
+        if len(remaining_characters) == 1:
+            guessed_char = remaining_characters[0]
+            print(f"\n🎉 Я угадал! Это персонаж: **{guessed_char}**")
+            break
+        elif len(remaining_characters) == 0:
+            print("\n❌ Что-то пошло не так, в базе не осталось подходящих персонажей под ваши ответы.")
+            break
+        elif step >= 25:
+            print(f"\n🤔 Похоже, у меня слишком много вариантов ({len(remaining_characters)}), но лимит вопросов исчерпан.")
+            if len(remaining_characters) > 0:
+                print(f"Возможные варианты: {list(remaining_characters[:5])}")
+            break
+            
+        step += 1
 
-    top_features = importance.nlargest(3).index.tolist()
-    current_quest = np.random.choice(top_features)
-    
-    ans = get_user_answer(current_quest)
-    user_responses[current_quest] = ans
-
-    df = edit_df(df, ans, current_quest)
-    importance = retrain_model(df)
-
-user_vec = user_responses.values
-scores = active_cosine_similarity(user_vec, matrix_full)
-max_score = scores.max()
-
-if max_score == 0.0:
-    print("Ни один персонаж не подошел")
-else:
-    best_match = scores.argmax()
-    best_character = df_copy['Character'].iloc[best_match]
-    print(f"\nВаш персонаж: {best_character} (Сходство: {max_score:.2%})")
+if __name__ == '__main__':
+    data_file = 'Onepiece_Blich_augmented.csv'
+    try:
+        initial_df = pd.read_csv(data_file)
+        print(f"Успешно загружено записей: {len(initial_df)} из {data_file}")
+    except FileNotFoundError:
+        print(f"Ошибка: Файл {data_file} не найден. Сначала запустите скрипт аугментации.")
+        exit(1)
+        
+    while True:
+        play_game(initial_df)
+        
+        restart = input("\nХотите сыграть еще раз? (yes/no): ").strip().lower()
+        if restart != 'yes':
+            print("Спасибо за игру! До свидания.")
+            break
