@@ -1,9 +1,11 @@
 import pandas as pd
-from utility import retrain_model, get_question, get_user_answer, edit_df
+from utility import retrain_model, get_question, get_user_answer, edit_df, get_interest_point
 
 def play_game(original_df):
     df = original_df.copy()
     step = 1
+    asked_questions = []
+    user_answers = []
     
     print("\n--- Новая игра Акинатора запущена! Загадайте персонажа ---")
     
@@ -14,15 +16,35 @@ def play_game(original_df):
             print("\nХмм... Кажется, я исчерпал все вопросы или не смог сузить круг персонажей.")
             break
             
-        question = get_question(fi_series)
+        remaining_characters = df['Character'].unique() if 'Character' in df.columns else []
+        
+        question = get_question(fi_series, df, remaining_characters)
         
         answer = get_user_answer(question)
+        asked_questions.append(question)
+        user_answers.append(answer)
         
         df = edit_df(df, question, answer, step=step)
         
         remaining_characters = df['Character'].unique() if 'Character' in df.columns else []
         
         print(f"[Шаг {step}] Осталось возможных персонажей: {len(remaining_characters)}")
+        
+        if len(remaining_characters) < 10:
+            max_sim = 0.0
+            best_char = None
+            for char in remaining_characters:
+                char_row = original_df[original_df['Character'] == char]
+                if not char_row.empty:
+                    char_vec = char_row[asked_questions].values[0]
+                    sim = get_interest_point(char_vec, user_answers)
+                    if sim > max_sim:
+                        max_sim = sim
+                        best_char = char
+            
+            if max_sim >= 0.95 and best_char:
+                print(f"\n🎉 Я угадал! Это персонаж: **{best_char}** (Косинусная близость: {max_sim:.2f})")
+                break
         
         if len(remaining_characters) == 1:
             guessed_char = remaining_characters[0]
@@ -40,7 +62,7 @@ def play_game(original_df):
         step += 1
 
 if __name__ == '__main__':
-    data_file = 'Onepiece_Blich_augmented.csv'
+    data_file = 'Onepiece_Blich-data.csv'
     try:
         initial_df = pd.read_csv(data_file)
         print(f"Успешно загружено записей: {len(initial_df)} из {data_file}")
