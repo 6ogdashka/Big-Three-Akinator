@@ -1,67 +1,125 @@
 import pandas as pd
 from utility import retrain_model, get_question, get_user_answer, edit_df, get_interest_point
 
-def play_game(original_df):
-    df = original_df.copy()
-    step = 1
-    asked_questions = []
-    user_answers = []
-    
-    print("\n--- Новая игра Акинатора запущена! Загадайте персонажа ---")
-    
-    while True:
-        fi_series = retrain_model(df)
+class AkinatorEngine:
+    def __init__(self, original_df):
+        self.original_df = original_df.copy()
+        self.reset_game()
+        
+    def reset_game(self):
+        self.df = self.original_df.copy()
+        self.step = 1
+        self.asked_questions = []
+        self.user_answers = []
+        self.is_finished = False
+        self.result_message = ""
+        
+    def play_step(self):
+        if self.is_finished:
+            return
+            
+        fi_series = retrain_model(self.df)
         
         if fi_series.empty or len(fi_series) == 0:
-            print("\nХмм... Кажется, я исчерпал все вопросы или не смог сузить круг персонажей.")
-            break
+            self.is_finished = True
+            self.result_message = "\nХмм... Кажется, я исчерпал все вопросы или не смог сузить круг персонажей."
+            return
             
-        remaining_characters = df['Character'].unique() if 'Character' in df.columns else []
+        remaining_characters = self.df['Character'].unique() if 'Character' in self.df.columns else []
         
-        question = get_question(fi_series, df, remaining_characters)
-        
+        question = get_question(fi_series, self.df, remaining_characters)
+        if not question:
+            self.is_finished = True
+            self.result_message = "\nНе осталось вопросов для разделения."
+            return
+            
         answer = get_user_answer(question)
-        asked_questions.append(question)
-        user_answers.append(answer)
+        self.asked_questions.append(question)
+        self.user_answers.append(answer)
         
-        df = edit_df(df, question, answer, step=step)
+        self.df = edit_df(self.df, question, answer, step=self.step)
+        remaining_characters = self.df['Character'].unique() if 'Character' in self.df.columns else []
         
-        remaining_characters = df['Character'].unique() if 'Character' in df.columns else []
+        print(f"[Шаг {self.step}] Осталось возможных персонажей: {len(remaining_characters)}")
         
-        print(f"[Шаг {step}] Осталось возможных персонажей: {len(remaining_characters)}")
+        self.check_win_condition(remaining_characters)
+        self.step += 1
         
-        if len(remaining_characters) < 5:
-            max_sim = 0.0
-            best_char = None
-            for char in remaining_characters:
-                char_row = original_df[original_df['Character'] == char]
-                if not char_row.empty:
-                    char_vec = char_row[asked_questions].values[0]
-                    sim = get_interest_point(char_vec, user_answers)
-                    if sim > max_sim:
-                        max_sim = sim
-                        best_char = char
+    def check_win_condition(self, remaining_characters):
+        if len(remaining_characters) == 0:
+            self.is_finished = True
+            self.result_message = "\n❌ Что-то пошло не так, в базе не осталось подходящих персонажей под ваши ответы."
+            return
             
-            if max_sim >= 0.98 and best_char:
-                print(f"\n🎉 Я угадал! Это персонаж: **{best_char}** (Косинусная близость: {max_sim:.2f})")
-                break
-        
         if len(remaining_characters) == 1:
-            guessed_char = remaining_characters[0]
-            print(f"\n🎉 Я угадал! Это персонаж: **{guessed_char}**")
-            break
-        elif len(remaining_characters) == 0:
-            print("\n❌ Что-то пошло не так, в базе не осталось подходящих персонажей под ваши ответы.")
-            break
-        elif step >= 25:
-            print("\n🤔 Лимит вопросов исчерпан, но я делаю наилучшую догадку:")
-            if best_char:
-                print(f"Наиболее похожий персонаж: **{best_char}** (Косинусная близость: {max_sim:.2f})")
-            else:
-                print("К сожалению, под ваши ответы не удалось выделить наиболее близкого кандидата.")
-            break
+            self.is_finished = True
+            self.result_message = f"\n🎉 Я уверен! Это персонаж: **{remaining_characters[0]}**"
+            return
+
+        if len(remaining_characters) < 10:
+            similarities = []
+            for char in remaining_characters:
+                char_row = self.original_df[self.original_df['Character'] == char]
+                if not char_row.empty:
+                    char_vec = char_row[self.asked_questions].values[0]
+                    sim = get_interest_point(char_vec, self.user_answers)
+                    similarities.append((char, sim))
+                    
+            similarities.sort(key=lambda x: x[1], reverse=True)
+            best_char, max_sim = similarities[0]
             
-        step += 1
+            if len(similarities) > 1:
+                second_sim = similarities[1][1]
+                delta = max_sim - second_sim
+                
+                if delta > 0.30 and max_sim >= 0.95:
+                    self.is_finished = True
+                    self.result_message = f"\n🎉 Я разгадал! Это персонаж: **{best_char}**\n(Сходство: {max_sim:.2f}, Отрыв от остальных: {delta:.2f})"
+                    return
+
+        if self.step >= 20:
+            self.is_finished = True
+            print("\n🤔 Достигнут лимит вопросов (20 шагов). Выбираю лучшего из оставшихся...")
+            similarities = []
+            for char in remaining_characters:
+                char_row = self.original_df[self.original_df['Character'] == char]
+                if not char_row.empty:
+                    char_vec = char_row[self.asked_questions].values[0]
+                    sim = get_interest_point(char_vec, self.user_answers)
+                    similarities.append((char, sim))
+            
+            if similarities:
+                best_char, max_sim = max(similarities, key=lambda x: x[1])
+                self.result_message = f"Наиболее подходящий персонаж из оставшихся: **{best_char}** (Сходство: {max_sim:.2f})"
+            else:
+                self.result_message = "Подходящих персонажей не осталось."
+
+        if self.step >= 25:
+            self.is_finished = True
+            print("\n🤔 Лимит вопросов исчерпан.")
+            similarities = []
+            for char in remaining_characters:
+                char_row = self.original_df[self.original_df['Character'] == char]
+                if not char_row.empty:
+                    char_vec = char_row[self.asked_questions].values[0]
+                    sim = get_interest_point(char_vec, self.user_answers)
+                    similarities.append((char, sim))
+            
+            if similarities:
+                best_char, max_sim = max(similarities, key=lambda x: x[1])
+                self.result_message = f"Наиболее подходящий персонаж из оставшихся: **{best_char}** (Сходство: {max_sim:.2f})"
+            else:
+                self.result_message = "Подходящих персонажей не осталось."
+
+
+def play_game(original_df):
+    print("\n--- Новая игра Акинатора запущена! Загадайте персонажа ---")
+    engine = AkinatorEngine(original_df)
+    
+    while not engine.is_finished:
+        engine.play_step()
+        
+    print(engine.result_message)
 
 if __name__ == '__main__':
     data_file = 'Onepiece_Blich-data.csv'
