@@ -30,7 +30,7 @@ def play_game(original_df):
         
         print(f"[Шаг {step}] Осталось возможных персонажей: {len(remaining_characters)}")
         
-        if len(remaining_characters) < 10:
+        if len(remaining_characters) < 5:
             max_sim = 0.0
             best_char = None
             for char in remaining_characters:
@@ -42,7 +42,7 @@ def play_game(original_df):
                         max_sim = sim
                         best_char = char
             
-            if max_sim >= 0.95 and best_char:
+            if max_sim >= 0.98 and best_char:
                 print(f"\n🎉 Я угадал! Это персонаж: **{best_char}** (Косинусная близость: {max_sim:.2f})")
                 break
         
@@ -54,9 +54,11 @@ def play_game(original_df):
             print("\n❌ Что-то пошло не так, в базе не осталось подходящих персонажей под ваши ответы.")
             break
         elif step >= 25:
-            print(f"\n🤔 Похоже, у меня слишком много вариантов ({len(remaining_characters)}), но лимит вопросов исчерпан.")
-            if len(remaining_characters) > 0:
-                print(f"Возможные варианты: {list(remaining_characters[:5])}")
+            print("\n🤔 Лимит вопросов исчерпан, но я делаю наилучшую догадку:")
+            if best_char:
+                print(f"Наиболее похожий персонаж: **{best_char}** (Косинусная близость: {max_sim:.2f})")
+            else:
+                print("К сожалению, под ваши ответы не удалось выделить наиболее близкого кандидата.")
             break
             
         step += 1

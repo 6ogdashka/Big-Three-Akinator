@@ -9,8 +9,8 @@ VALUE_MAP = {
     (-1.0, -1.0): 3, (1.0, 1.0): 3,
     (-1.0, -0.7): 1, (0.7, 1.0): 1, (-0.7, -0.7): 1, (0.7, 0.7): 1, (0.0, 0.0): 1,
     (-1.0, 0.0): 0,  (1.0, 0.0): 0, (-0.7, 0.0): 0,  (0.7, 0.0): 0,
-    (-1.0, 0.7): -1, (-0.7, 1.0): -1, (-0.7, 0.7): -1,
-    (-1.0, 1.0): -3
+    (-1.0, 0.7): -2, (-0.7, 1.0): -2, (-0.7, 0.7): -1, 
+    (-1.0, 1.0): -5 
 }
 
 def get_score_point(vec1, vec2):
@@ -21,15 +21,11 @@ def _get_pair_score(val1: float, val2: float) -> int:
 
 def get_interest_point(vec1, vec2):
     score_12 = sum(VALUE_MAP.get(tuple(sorted((x, y))), 0) for x, y in zip(vec1, vec2))
-
     score_11 = sum(VALUE_MAP.get((x, x), 0) for x in vec1)
     score_22 = sum(VALUE_MAP.get((y, y), 0) for y in vec2)
-
     denominator = np.sqrt(score_11 * score_22)
-    
     if denominator == 0:
         return 0.0
-        
     return score_12 / denominator
 
 def edit_df(df: pd.DataFrame, quest: str, ans: float, step: int = 1) -> pd.DataFrame:
@@ -45,25 +41,29 @@ def edit_df(df: pd.DataFrame, quest: str, ans: float, step: int = 1) -> pd.DataF
     if max_score <= 3:
         threshold = 0.0
     else:
-        dynamic_ratio = min(0.85, 0.30 + 0.025 * step)
+        dynamic_ratio = min(0.90, 0.40 + 0.05 * step)
         threshold = max_score * dynamic_ratio
 
     return df[df['_score'] >= threshold].drop(columns=[quest])
 
 def retrain_model(df):
     X = df.drop(['Character', '_score'], axis=1, errors='ignore')
-    
     if X.empty or len(df['Character'].unique()) <= 1:
         return pd.Series(dtype='float64')
-        
     names = df['Character']
-    
     model = RandomForestClassifier(n_estimators=300, random_state=42)
     model.fit(X, names)
-    
     return pd.Series(model.feature_importances_, index=X.columns)
 
-def get_question(fi_df: pd.DataFrame) -> str:
+def get_question(fi_df: pd.DataFrame, df: pd.DataFrame, remaining_chars: list) -> str:
+    if 0 < len(remaining_chars) <= 30:
+        sub_df = df[df['Character'].isin(remaining_chars)]
+        feature_cols = [c for c in sub_df.columns if c not in ['Character', '_score']]
+        if feature_cols:
+            variances = sub_df[feature_cols].var()
+            if not variances.empty:
+                return variances.idxmax()
+                
     top_quest = np.array(fi_df.index[:3])
     return np.random.choice(top_quest)
 
@@ -75,10 +75,8 @@ def get_user_answer(question_text):
         'mb no': -0.7,
         'no': -1.0
     }
-    
     print(f"\nВопрос: {question_text}")
     print("Варианты ответа: yes, mb yes, idk, mb no, no")
-    
     while True:
         user_input = input("Ваш ответ: ").strip().lower()
         if user_input in answers_map:
