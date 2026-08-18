@@ -65,30 +65,49 @@ def edit_df(df: pd.DataFrame, quest: str, ans: float, step: int = 1) -> pd.DataF
     if max_score <= 3:
         threshold = 0.0
     else:
-        dynamic_ratio = min(0.90, 0.40 + 0.05 * step)
+        dynamic_ratio = min(0.85, 0.30 + 0.03 * step)
         threshold = max_score * dynamic_ratio
 
     return df[df['_score'] >= threshold].drop(columns=[quest], errors='ignore')
-
-def retrain_model(df):
-    X = df.drop(['Character', '_score'], axis=1, errors='ignore')
-    if X.empty or len(df['Character'].unique()) <= 1:
-        return pd.Series(dtype='float64')
-    names = df['Character']
-    
-    if HAS_CATBOOST:
-        model = CatBoostClassifier(iterations=50, thread_count=-1, logging_level='Silent', random_state=42)
-        model.fit(X, names)
-        return pd.Series(model.get_feature_importance(), index=X.columns).sort_values(ascending=False)
-    else:
-        model = RandomForestClassifier(n_estimators=50, n_jobs=-1, random_state=42)
-        model.fit(X, names)
-        return pd.Series(model.feature_importances_, index=X.columns).sort_values(ascending=False)
 
 def calculate_entropy(series):
     counts = series.value_counts()
     probabilities = counts / len(series)
     return entropy(probabilities, base=2)
+
+def fast_feature_importance(df, features):
+    '''Быстрый расчет прироста информации через энтропию без нагрузки на ЦП.'''
+    importances = []
+    for col in features:
+        ent = calculate_entropy(df[col])
+        importances.append((col, ent))
+    importances.sort(key=lambda x: x[1], reverse=True)
+    return pd.Series(dict(importances))
+
+def retrain_model(df, step=1):
+    X = df.drop(['Character', '_score'], axis=1, errors='ignore')
+    if X.empty or len(df['Character'].unique()) <= 1:
+        return pd.Series(dtype='float64')
+    
+    remaining_count = len(df['Character'].unique())
+    
+    # ГИБРИДНАЯ МОДЕЛЬ: 
+    # Если датасет раздут после аугментации (осталось > 250 вариантов)
+    # или это не каждый 4-й ход, то используем быструю энтропию, чтобы не проседал FPS.
+    if remaining_count > 250 or step % 4 != 1:
+        return fast_feature_importance(df, X.columns)
+    
+    # Включаем тяжелый ML только для точного добивания
+    names = df['Character']
+    
+    if HAS_CATBOOST:
+        model = CatBoostClassifier(iterations=30, thread_count=-1, logging_level='Silent', random_state=42)
+        model.fit(X, names)
+        return pd.Series(model.get_feature_importance(), index=X.columns).sort_values(ascending=False)
+    else:
+        model = RandomForestClassifier(n_estimators=30, n_jobs=-1, random_state=42)
+        model.fit(X, names)
+        return pd.Series(model.feature_importances_, index=X.columns).sort_values(ascending=False)
 
 def get_question(fi_df: pd.Series, df: pd.DataFrame, remaining_chars: list) -> str:
     if len(df) > 100:
