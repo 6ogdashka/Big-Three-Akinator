@@ -11,8 +11,22 @@ class AkinatorEngine:
         self.step = 1
         self.asked_questions = []
         self.user_answers = []
+        self.history = []  # Стек для отката состояний
         self.is_finished = False
         self.result_message = ""
+        
+    def undo_step(self):
+        if not self.history:
+            print("\n[Система] Это первый вопрос, откатываться некуда!")
+            return False
+            
+        print("\n[Система] Откат на один шаг назад...")
+        last_state = self.history.pop()
+        self.df = last_state['df']
+        self.step = last_state['step']
+        self.asked_questions = last_state['asked_questions']
+        self.user_answers = last_state['user_answers']
+        return True
         
     def play_step(self):
         if self.is_finished:
@@ -28,17 +42,42 @@ class AkinatorEngine:
             
         remaining_characters = self.df['Character'].unique() if 'Character' in self.df.columns else []
         
-        question = get_question(fi_series, self.df, remaining_characters)
-        if not question:
+        raw_question = get_question(fi_series, self.df, remaining_characters)
+        if not raw_question:
             self.is_finished = True
             self.result_message = "\nНе осталось вопросов для разделения."
             return
+
+        # Парсинг уточняющих вопросов от utility.py
+        is_verification = raw_question.startswith("[Уточнение]")
+        display_question = raw_question
+        core_question = raw_question.replace("[Уточнение] Вы уверены в ответе на вопрос: ", "") if is_verification else raw_question
             
-        answer = get_user_answer(question)
-        self.asked_questions.append(question)
-        self.user_answers.append(answer)
+        # UI prompt для команды back
+        print("\n(Введите 'back' для отмены предыдущего ответа)")
+        answer = get_user_answer(display_question)
         
-        self.df = edit_df(self.df, question, answer, step=self.step)
+        if str(answer).lower() == 'back':
+            self.undo_step()
+            return
+
+        # Сохраняем снимок состояния перед изменениями
+        self.history.append({
+            'df': self.df.copy(),
+            'step': self.step,
+            'asked_questions': list(self.asked_questions),
+            'user_answers': list(self.user_answers)
+        })
+        
+        # Если это верификация, мы обновляем старый ответ, а не добавляем новый дубль
+        if is_verification and core_question in self.asked_questions:
+            idx = self.asked_questions.index(core_question)
+            self.user_answers[idx] = answer
+        else:
+            self.asked_questions.append(core_question)
+            self.user_answers.append(answer)
+        
+        self.df = edit_df(self.df, core_question, answer, step=self.step)
         remaining_characters = self.df['Character'].unique() if 'Character' in self.df.columns else []
         
         print(f"[Шаг {self.step}] Осталось возможных персонажей: {len(remaining_characters)}")
@@ -73,7 +112,7 @@ class AkinatorEngine:
                 second_sim = similarities[1][1]
                 delta = max_sim - second_sim
                 
-                if delta > 0.30 and max_sim >= 0.95:
+                if delta > 0.45 and max_sim >= 0.95:
                     self.is_finished = True
                     self.result_message = f"\n🎉 Я разгадал! Это персонаж: **{best_char}**\n(Сходство: {max_sim:.2f}, Отрыв от остальных: {delta:.2f})"
                     return
@@ -108,7 +147,7 @@ def play_game(original_df):
     print(engine.result_message)
 
 if __name__ == '__main__':
-    data_file = 'Onepiece_Blich-data_augmented.csv'
+    data_file = 'Naruto.csv'
     try:
         initial_df = pd.read_csv(data_file)
         print(f"Успешно загружено записей: {len(initial_df)} из {data_file}")
