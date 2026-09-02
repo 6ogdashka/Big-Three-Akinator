@@ -1,50 +1,204 @@
 import warnings
-import pandas as pd
 import numpy as np
+import pandas as pd
 from scipy.stats import entropy
 from sklearn.ensemble import RandomForestClassifier
 
 try:
-    from catboost import CatBoostClassifier
-    HAS_CATBOOST = True
+  from catboost import CatBoostClassifier
+  HAS_CATBOOST = True
 except ImportError:
-    HAS_CATBOOST = False
+  HAS_CATBOOST = False
 
 warnings.filterwarnings("ignore")
 
-VALUE_MAP = {
-    (-1.0, -1.0): 3, (1.0, 1.0): 3,
-    (-1.0, -0.7): 1, (0.7, 1.0): 1, (-0.7, -0.7): 1, (0.7, 0.7): 1, (0.0, 0.0): 1,
-    (-1.0, 0.0): 0,  (1.0, 0.0): 0, (-0.7, 0.0): 0,  (0.7, 0.0): 0,
-    (-1.0, 0.7): -2, (-0.7, 1.0): -2, (-0.7, 0.7): -1,
-    (-1.0, 1.0): -5  
-}
-
-DOMAIN_RULES = {
-    "Является ли он синигами (проводником душ)?": [
-        "Является ли он материализованным духом занпакто?"
+# Логические группы вопросов (сохранены для справки и потенциальной группировки)
+QUESTION_GROUPS = {
+    "Внешность и физические атрибуты": [
+        "Ваш персонаж женского пола?",
+        "У него черные волосы?",
+        "Светлые ли у персонажа волосы (блондин, седой или белый)?",
+        "У этого персонажа неестественный цвет волос (розовый, синий, зеленый)?",
+        "Носит ли он головной убор?",
+        "Есть ли у него шрамы, татуировки или особые отметины на лице?",
+        "Носит ли он очки или повязку на глазу?",
+        "Он выглядит как ребенок?",
+        "У него явно нечеловеческая внешность?",
+        "Надевает ли персонаж маску на лицо (или имеет ее фрагмент) во время боя?",
+        "Выделяется ли персонаж огромным ростом и габаритами (значительно крупнее остальных)?",
     ],
-    "Съел ли персонаж Дьявольский фрукт?": [
-        "Относится ли Дьявольский фрукт к типу Парамеция?", 
-        "Относится ли Дьявольский фрукт к типу Логия?", 
-        "Относится ли Дьявольский фрукт к типу Обычный Зоан?", 
-        "Относится ли Дьявольский фрукт к типу Древний Зоан?", 
-        "Относится ли Дьявольский фрукт к типу Мифический Зоан?", 
-        "Является ли Дьявольский фрукт Искусственным Зоаном (Смайлом)?"
-    ]
+    "Общая роль, характер и сюжетный статус": [
+        "Этот персонаж был в 1 сезоне?",
+        "Этот персонаж мертв на текущий момент?",
+        "Сражался ли ваш персонаж против главного героя?",
+        "Является ли персонаж учителем или наставником?",
+        "Является ли он обычным человеком?",
+        "Является ли он чьим-то слугой или подчиненным?",
+        "Является ли он лидером своей группы?",
+        "Персонаж из знатного рода(по праву крови)?",
+        "Состоит в официальной организации(служитель закона)?",
+        "Является ли он преступником(пиратом разбойником)?",
+        "Предавал ли этот персонаж свою изначальную организацию (является ли перебежчиком)?",
+        "Есть ли у этого персонажа брат или сестра, также участвующие в сюжете?",
+    ],
+    "Боевой стиль и универсальные способности": [
+        "Использует ли он меч как основное оружие?",
+        "Сражается в дальнем бою?",
+        "Сражается в рукопашку?",
+        "Может призывать существ(фамильяров)?",
+        "Может исцелять себя и других?",
+        "Связаны ли боевые способности персонажа с конкретной стихией (огонь, лед, вода)?",
+        "Использует ли персонаж в бою яд, иллюзии или контроль разума?",
+        "Является ли этот персонаж ученым или изобретателем?",
+    ],
+    "Вселенная Bleach": [
+        "Является ли он синигами (проводником душ)?",
+        "Является ли он квинси?",
+        "Является ли он пустым или арранкаром?",
+        "Является ли он модифицированной душой?",
+        "Является ли он материализованным духом занпакто?",
+        "Является ли он божеством (прародителем высшим существом)?",
+        "Достиг ли этот персонаж банкая?",
+    ],
+    "Вселенная One Piece — Фракции, Дьявольские фрукты и Титулы": [
+        "Этот персонаж был или является Ёнко?",
+        "Был ли персонаж Ситибукаем (Морским Лордом)?",
+        "Съел ли персонаж дьявольский фрукт?",
+        "Относится ли дьявольский фрукт к типу Парамеция?",
+        "Относится ли дьявольский фрукт к типу Логия?",
+        "Относится ли дьявольский фрукт к типу Обычный Зоан?",
+        "Относится ли дьявольский фрукт к типу Древний Зоан?",
+        "Относится ли дьявольский фрукт к типу Мифический Зоан?",
+        "Является ли персонаж Синъути (Звездным исполнителем Пиратов Зверей)?",
+        "Является ли персонаж Старшей Звездой (Бедствием Пиратов Зверей)?",
+        "Является ли персонаж Генералом-Сладостью (Пиратов Большой Мамочки)?",
+        "Был ли персонаж офицером-агентом (Барок Воркс)?",
+        "Был ли персонаж агентом Фронтира (Барок Воркс)?",
+        "Является ли персонаж брокером Подполья?",
+        "Является ли персонаж жрецом Энеля?",
+        "Является ли персонаж воином Шандии?",
+        "Входит ли персонаж в Тройку Мушкетеров Инуараси?",
+        "Был ли персонаж Кингсбюрдом (вестником королей Минков)?",
+    ],
+    "Вселенная One Piece — Происхождение и Арки": [
+        "Происходит ли персонаж с Ред Лайн (Мариджоа)?",
+        "Происходит ли персонаж с Острова Рыболюдей (Королевство Рюгу)?",
+        "Происходит ли персонаж из Королевства Рюгу (Гранд Лайн)?",
+        "Происходит ли персонаж с Эльбафа (Гранд Лайн)?",
+        "Происходит ли персонаж с Небесного Острова Скайпия?",
+        "Происходит ли персонаж со Скайпии (Гранд Лайн)?",
+        "Происходит ли персонаж с Небесного Острова Бирка?",
+        "Происходит ли персонаж из Калм Белт (Амазон Лили)?",
+        "Происходит ли персонаж из Княжества Мокомо (Гранд Лайн)?",
+        "Появлялся ли персонаж в арке Вотер 7 / Эниес Лобби?",
+        "Появлялся ли персонаж в арке Скайпия?",
+        "Появлялся ли персонаж в арке Остров Рыболюдей?",
+        "Появлялся ли персонаж в арке Страна Вано?",
+        "Появлялся ли персонаж в арке Дрессроза?",
+        "Появлялся ли персонаж в арке Пирожный Остров?",
+        "Появлялся ли персонаж в ранних арках саги Арабасты?",
+        "Появлялся ли персонаж в арке Архипелаг Сабаоди?",
+        "Появлялся ли персонаж в арке Маринфорд?",
+        "Появлялся ли персонаж в арке Панк Хазард?",
+        "Появлялся ли персонаж в арке Барати?",
+        "Появлялся ли персонаж в арке Арабаста?",
+        "Появлялся ли персонаж в арке Триллер Барк?",
+        "Появлялся ли персонаж в арке Импел Даун?",
+        "Появлялся ли персонаж в арке Арлонг Парк?",
+        "Появлялся ли персонаж в арке Дзо?",
+        "Появлялся ли персонаж в арке Логтаун?",
+        "Появлялся ли персонаж в арке Левели (Совет Королей)?",
+        "Появлялся ли персонаж в арке Амазон Лили?",
+        "Был ли персонаж узником Импел Даун?",
+        "Является ли персонаж узником Импел Даун?",
+    ],
+    "Вселенная Naruto — Происхождение, Кланы и Организации": [
+        "Ваш персонаж родом из скрытой деревни листа (Коноха)?",
+        "Ваш персонаж является выходцем из скрытой деревни песка (Суна)?",
+        "Ваш персонаж родом из Скрытой Деревни Тумана (Киригакуре)?",
+        "Ваш персонаж родом из Скрытой Деревни Облака (Кумогакуре)?",
+        "Ваш персонаж родом из Скрытой Деревни Камня (Ивагакуре)?",
+        "Ваш персонаж родом из Скрытой Деревни Дождя (Амегакуре)?",
+        "Ваш персонаж родом из Скрытой Деревни Звука (Отогакуре)?",
+        "Ваш персонаж родом из малых деревень (Водопада, Травы или Звезды)?",
+        "Ваш персонаж входит в  группу Семи мечников Скрытого Тумана?",
+        "Ваш персонаж носит титул Райкаге или является сильнейшим шиноби Скрытого Облака?",
+        "Ваш персонаж состоит в преступной организации Акацуки?",
+        "Ваш персонаж принадлежит к клану Учиха?",
+        "Ваш персонаж является представителем клана Хьюга?",
+        "Ваш персонаж служил в элитном подразделении Анбу?",
+        "Ваш персонаж имеет статус нукенина (ниндзя-отступника)?",
+        "Ваш персонаж относится к клану Сенджу или Узумаки?",
+        "Ваш персонаж входит в состав команды 7?",
+        "Ваш персонаж является выходцем из клана Нара, Акимичи или Яманака?",
+        "Ваш персонаж занимал официальный пост главы своей деревни?",
+        "Ваш персонаж входит в элитную группу легендарных Саннинов?",
+        "Ваш персонаж участвовал в четвертой мировой войне шиноби?",
+    ],
+    "Вселенная Naruto — Кёккэй Гэндкай, Ниндзюцу и Техники": [
+        "У вашего персонажа есть врожденная глазная техника (Додзюцу)?",
+        "У вашего персонажа имеется легендарный Шаринган?",
+        "У вашего персонажа пробужден Риннеган?",
+        "У вашего персонажа есть клановый Бьякуган?",
+        "Ваш персонаж является(лся) джинчурики (носителем хвостатого зверя)?",
+        "Ваш персонаж владеет техникой Режима Отшельника (Сеннин мод)?",
+        "Ваш персонаж использует боевых марионеток в качестве основного оружия?",
+        "Ваш персонаж обладает чудовищной силой и техникой медицинского исцеления?",
+        "Ваш персонаж обладает высоким интеллектом и техникой теневого подражания?",
+        "Ваш персонаж обладал печатью птицы в клетке и техникой вращения?",
+        "Ваш персонаж является мастером тайдзюцу без ниндзюцу?",
+        "Ваш персонаж владеет Джинецу из Скрытого Камня?",
+        "Ваш персонаж увеличивает тело в размерах?",
+        "Ваш персонаж владеет техникой переноса разума?",
+        "Ваш персонаж способен превращать свое тело в бумажные листы?",
+        "Ваш персонаж обладает способностями управления бумагой или техникой Ангела из Скрытого Дождя?",
+    ],
+    "Вселенная Naruto — Специфические сюжетные детали и Персонажи": [
+        "У вашего персонажа главные жизненные мотивы связаны с местью?",
+        "Ваш персонаж является родным братом кого-то из ключевых членов клана Учиха?",
+        "Ваш персонаж имеет внутри себя запечатанного девятихвостого демона-лиса?",
+        "Ваш персонаж является мстителем из клана Учиха?",
+        "Ваш персонаж носит маску и владеет техникой Чидори?",
+        "Ваш персонаж является наследницей клана Хьюга с техникой Мягкого Кулака?",
+        "Ваш персонаж является Казекаге деревни Песка с сосудом песка и Шукаку?",
+        "Ваш персонаж сражается в паре с ниндзя-псом Акамару?",
+        "Ваш персонаж уничтожил собственный клан?",
+        "Ваш персонаж управляет телами Пейна с глазами Шести Путей?",
+        "Ваш персонаж является одним из бывших лидеров Деревни Дождя, носивших титул Пейна?",
+        "Ваш персонаж был основателем и лидером Скрытой Деревни Звука?",
+        "Ваш персонаж одержим бессмертием?",
+        "Ваш персонаж создал одну из культовых техник (Расенган или Чидори)?",
+        "Ваш персонаж был прямым учеником четвертого Хокаге Минато Намикадзе?",
+        "Ваш персонаж является легендарным саннином и наставником Наруто?",
+        "Ваш персонаж выступает в роли учителя или наставника для других шиноби?",
+        "Ваш персонаж является Пятой Хокаге?",
+        "Ваш персонаж является Первым Хокаге?",
+        "Ваш персонаж является Вторым Хокаге?",
+        "Ваш персонаж является Третьим Хокаге?",
+        "Ваш персонаж является Четвертым Хокаге(Желтая Молния)?",
+    ],
 }
 
-MAIN_QUESTION = {
-    "Использует ли он меч как основное оружие?",
-    "Является ли он обычным человеком?",
-    "Является ли он чьим-то слугой или подчиненным?",
-    "У него явно нечеловеческая внешность?",
-    "Является ли он лидером своей группы?",
-    "Персонаж из знатного рода (по праву крови)?"
+VALUE_MAP = {
+    (-1.0, -1.0): 5,
+    (1.0, 1.0): 5,
+    (-1.0, -0.7): 1,
+    (0.7, 1.0): 1,
+    (-0.7, -0.7): 1,
+    (0.7, 0.7): 1,
+    (0.0, 0.0): 1,
+    (-1.0, 0.0): 0,
+    (1.0, 0.0): 0,
+    (-0.7, 0.0): 0,
+    (0.7, 0.0): 0,
+    (-1.0, 0.7): -2,
+    (-0.7, 1.0): -2,
+    (-0.7, 0.7): -1,
+    (-1.0, 1.0): -5,
 }
 
 def _get_pair_score(val1: float, val2: float) -> int:
-    return VALUE_MAP.get(tuple(sorted((val1, val2))), 0)
+  return VALUE_MAP.get(tuple(sorted((val1, val2))), 0)
 
 def get_interest_point(vec1, vec2):
     score_12 = sum(VALUE_MAP.get(tuple(sorted((x, y))), 0) for x, y in zip(vec1, vec2))
@@ -55,103 +209,124 @@ def get_interest_point(vec1, vec2):
         return 0.0
     return score_12 / denominator
 
-def edit_df(df: pd.DataFrame, quest: str, ans: float, step: int = 1) -> pd.DataFrame:
-    if '_score' not in df.columns:
-        df = df.copy()
-        df['_score'] = 0.0
+def edit_df(
+    df: pd.DataFrame, quest: str, ans: float, step: int = 1
+) -> pd.DataFrame:
+  if "_score" not in df.columns:
+    df = df.copy()
+    df["_score"] = 0.0
 
-    score_map = {val: _get_pair_score(val, ans) for val in (-1.0, -0.7, 0.0, 0.7, 1.0)}
-    df['_score'] += df[quest].map(score_map).fillna(0)
-    
-    if ans <= -0.7 and quest in DOMAIN_RULES:
-        cols_to_drop = [c for c in DOMAIN_RULES[quest] if c in df.columns]
-        if cols_to_drop:
-            df = df.drop(columns=cols_to_drop)
+  score_map = {
+      val: _get_pair_score(val, ans) for val in (-1.0, -0.7, 0.0, 0.7, 1.0)
+  }
+  df["_score"] += df[quest].map(score_map).fillna(0)
 
-    max_score = df['_score'].max()
-    
-    if max_score <= 3:
-        threshold = 0.0
-    else:
-        dynamic_ratio = min(0.85, 0.30 + 0.03 * step)
-        threshold = max_score * dynamic_ratio
+  max_score = df["_score"].max()
+  threshold = 0.0 if max_score <= 3 else max_score * min(0.85, 0.30 + 0.03 * step)
 
-    return df[df['_score'] >= threshold].drop(columns=[quest], errors='ignore')
+  return df[df["_score"] >= threshold].drop(columns=[quest], errors="ignore")
+
 
 def calculate_entropy(series):
-    counts = series.value_counts()
-    probabilities = counts / len(series)
-    return entropy(probabilities, base=2)
+  counts = series.value_counts()
+  probabilities = counts / len(series)
+  return entropy(probabilities, base=2)
+
 
 def fast_feature_importance(df, features):
-    '''Быстрый расчет прироста информации через энтропию без нагрузки на ЦП.'''
-    importances = []
-    for col in features:
-        ent = calculate_entropy(df[col])
-        importances.append((col, ent))
-    importances.sort(key=lambda x: x[1], reverse=True)
-    return pd.Series(dict(importances))
+  importances = [
+      (col, calculate_entropy(df[col]))
+      for col in features
+      if col in df.columns
+  ]
+  importances.sort(key=lambda x: x[1], reverse=True)
+  return pd.Series(dict(importances))
+
 
 def retrain_model(df, step=1):
-    X = df.drop(['Character', '_score'], axis=1, errors='ignore')
-    if X.empty or len(df['Character'].unique()) <= 1:
-        return pd.Series(dtype='float64')
-    
-    remaining_count = len(df['Character'].unique())
-    
-    if remaining_count > 250 or step % 4 != 1:
-        return fast_feature_importance(df, X.columns)
+  X = df.drop(["Character", "_score"], axis=1, errors="ignore")
+  if X.empty or len(df["Character"].unique()) <= 1:
+    return pd.Series(dtype="float64")
 
-    names = df['Character']
-    
-    if HAS_CATBOOST:
-        model = CatBoostClassifier(iterations=30, thread_count=-1, logging_level='Silent', random_state=42)
-        model.fit(X, names)
-        return pd.Series(model.get_feature_importance(), index=X.columns).sort_values(ascending=False)
-    else:
-        model = RandomForestClassifier(n_estimators=30, n_jobs=-1, random_state=42)
-        model.fit(X, names)
-        return pd.Series(model.feature_importances_, index=X.columns).sort_values(ascending=False)
+  remaining_count = len(df["Character"].unique())
+  if remaining_count > 250 or step % 4 != 1:
+    return fast_feature_importance(df, X.columns)
 
-def get_question(fi_df: pd.Series, df: pd.DataFrame, remaining_chars: list) -> str:
-    if len(df) > 100:
-        global_boosters = [
-            "Является ли он синигами (проводником душ)?",
-            "Съел ли персонаж Дьявольский фрукт?",
-            "Ваш персонаж женского пола?",
-            "Является ли он преступником(пиратом разбойником)"
-        ]
-        for booster in global_boosters:
-            if booster in fi_df.index and booster in df.columns:
-                sub_vals = df[booster].unique()
-                if len(sub_vals) > 1:
-                    return booster
+  names = df["Character"]
+  if HAS_CATBOOST:
+    model = CatBoostClassifier(
+        iterations=50, thread_count=-1, logging_level="Silent", random_state=42
+    )
+    model.fit(X, names)
+    return pd.Series(model.get_feature_importance(), index=X.columns).sort_values(
+        ascending=False
+    )
+  else:
+    model = RandomForestClassifier(n_estimators=50, n_jobs=-1, random_state=42)
+    model.fit(X, names)
+    return pd.Series(model.feature_importances_, index=X.columns).sort_values(
+        ascending=False
+    )
 
-    if 0 < len(remaining_chars) <= 30:
-        sub_df = df[df['Character'].isin(remaining_chars)]
-        feature_cols = [c for c in sub_df.columns if c not in ['Character', '_score']]
-        if feature_cols:
-            entropies = sub_df[feature_cols].apply(calculate_entropy)
-            if not entropies.empty and entropies.max() > 0:
-                return entropies.idxmax()
-                
-    top_quest = list(fi_df.index[:3])
-    if top_quest:
-        return np.random.choice(top_quest)
+
+def get_question(
+    fi_df: pd.Series, df: pd.DataFrame, remaining_chars: list, top_k: int = 5, temperature: float = 0.7
+) -> str:
+
+  if fi_df.empty:
     return ""
 
+  # 1. Если персонажей мало (<= 30), переключаемся на чистую энтропию среди оставшихся с Softmax
+  if 0 < len(remaining_chars) <= 30:
+    sub_df = df[df["Character"].isin(remaining_chars)]
+    feature_cols = [
+        c for c in sub_df.columns if c not in ["Character", "_score"]
+    ]
+    if feature_cols:
+      entropies = sub_df[feature_cols].apply(calculate_entropy)
+      if not entropies.empty and entropies.max() > 0:
+        top_entropies = entropies.nlargest(min(3, len(entropies)))
+        scores = top_entropies.values.astype(float)
+        scores_shifted = scores - np.max(scores)
+        exp_scores = np.exp(scores_shifted / temperature)
+        probs = exp_scores / np.sum(exp_scores)
+        return np.random.choice(top_entropies.index, p=probs)
+
+  # 2. Берем допустимые валидные вопросы из fi_df
+  valid_candidates = [(q, score) for q, score in fi_df.items() if q in df.columns and len(df[q].unique()) > 1]
+  
+  if not valid_candidates:
+    return ""
+
+  top_candidates = valid_candidates[:max(1, top_k)]
+  questions = [q[0] for q in top_candidates]
+  scores = np.array([float(q[1]) for q in top_candidates])
+
+  if np.all(scores == scores[0]):
+    return np.random.choice(questions)
+
+  # 3. Применяем Softmax с температурой для динамического выбора среди лучших
+  scores_shifted = scores - np.max(scores)
+  exp_scores = np.exp(scores_shifted / temperature)
+  probabilities = exp_scores / np.sum(exp_scores)
+
+  return np.random.choice(questions, p=probabilities)
+
+
 def get_user_answer(question_text):
-    answers_map = {
-        'yes': 1.0,
-        'mb yes': 0.7,
-        'idk': 0.0,
-        'mb no': -0.7,
-        'no': -1.0
-    }
-    print(f"\nВопрос: {question_text}")
-    print("Варианты ответа: yes, mb yes, idk, mb no, no")
-    while True:
-        user_input = input("Ваш ответ: ").strip().lower()
-        if user_input in answers_map:
-            return answers_map[user_input]
-        print("Неверный ввод. Пожалуйста, выберите из: yes, mb yes, idk, mb no, no")
+  answers_map = {
+      "yes": 1.0,
+      "mb yes": 0.7,
+      "idk": 0.0,
+      "mb no": -0.7,
+      "no": -1.0,
+  }
+  print(f"\nВопрос: {question_text}")
+  print("Варианты ответа: yes, mb yes, idk, mb no, no")
+  while True:
+    user_input = input("Ваш ответ: ").strip().lower()
+    if user_input in answers_map:
+      return answers_map[user_input]
+    print(
+        "Неверный ввод. Пожалуйста, выберите из: yes, mb yes, idk, mb no, no"
+    )
