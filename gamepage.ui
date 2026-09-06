@@ -29,9 +29,9 @@
   <widget class="QLabel" name="WE">
    <property name="geometry">
     <rect>
-     <x>100</x>
+     <x>50</x>
      <y>30</y>
-     <width>300</width>
+     <width>400</width>
      <height>400</height>
     </rect>
    </property>
@@ -60,8 +60,8 @@
    <property name="styleSheet">
     <string notr="true">QFrame#frame {
     background-color:  #F5E6B8;
-    border: 2px black;                 /* Опционально: аккуратная фиолетовая рамка */
-    border-radius: 10px;                       /* Скругление углов */
+    border: 2px black;                 
+    border-radius: 10px;                       
 }
 
 </string>
@@ -75,8 +75,8 @@
    <widget class="QTextEdit" name="QUESTION">
     <property name="geometry">
      <rect>
-      <x>0</x>
-      <y>30</y>
+      <x>5</x>
+      <y>5</y>
       <width>488</width>
       <height>64</height>
      </rect>

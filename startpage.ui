@@ -57,7 +57,7 @@
            color: black;
            border-radius: 12px;
            padding: 10px 20px;
-           font-size: 25px;
+           font-size: 23px;
           border: none;
           font-weight:bold;
           padding-top: 5px;
@@ -78,10 +78,10 @@
   <widget class="QPushButton" name="infoButton">
    <property name="geometry">
     <rect>
-     <x>19</x>
+     <x>14</x>
      <y>13</y>
      <width>121</width>
-     <height>41</height>
+     <height>47</height>
     </rect>
    </property>
    <property name="styleSheet">
@@ -89,7 +89,7 @@
     background-color: #F5E6B8;
     color: black;
     border-radius: 12px;
-    padding: 10px 20px;
+    padding: 8px 18px;
     font-size: 14px;
     border: none;
     font-weight: bold;
@@ -108,17 +108,26 @@ QPushButton:pressed {
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
-     <x>280</x>
+     <x>140</x>
      <y>13</y>
-     <width>201</width>
-     <height>31</height>
+     <width>340</width>
+     <height>47</height>
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true"/>
+    <string notr="true">QLabel {
+    background-color: #F5E6B8;
+    color: black;
+    border-radius: 12px;
+    padding: 8px 18px;
+    font-size: 14px;
+    border: none;
+    font-weight: bold;
+}</string>
    </property>
    <property name="text">
-    <string>Проект выполнен Красненко Богданом и Футрук Ириной</string>
+    <string>Проект выполнен
+ Красненко Богданом и Футрук Ириной</string>
    </property>
    <property name="alignment">
     <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -130,16 +139,18 @@ QPushButton:pressed {
   <widget class="QLabel" name="label_2">
    <property name="geometry">
     <rect>
-     <x>150</x>
+     <x>140</x>
      <y>440</y>
-     <width>200</width>
+     <width>220</width>
      <height>41</height>
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true">background-color: #F5E6B8; 
+    <string notr="true">background-color: #F5E6B8;
 color: black;
  border-radius: 10px;
+ font-weight: normal;
+ font-family: sans-serif;
  </string>
    </property>
    <property name="text">
@@ -162,7 +173,11 @@ color: black;
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true">color: black;</string>
+    <string notr="true">
+    color: black;
+    font-weight: normal;
+    font-family: sans-serif;
+    </string>
    </property>
    <property name="text">
     <string>Мы прочитаем ваши мысли</string>
@@ -170,6 +185,73 @@ color: black;
    <property name="alignment">
     <set>Qt::AlignmentFlag::AlignCenter</set>
    </property>
+  </widget>
+  <widget class="QFrame" name="historyFrame">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>100</y>
+     <width>400</width>
+     <height>440</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QFrame {
+    background-color: #F5E6B8;
+    border-radius: 12px;
+}</string>
+   </property>
+   <widget class="QTextBrowser" name="historyText">
+    <property name="geometry">
+     <rect>
+      <x>15</x>
+      <y>15</y>
+      <width>370</width>
+      <height>360</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QTextBrowser {
+    background-color: #FFFDF4;
+    color: black;
+    border: 1px solid #E8D5A3;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 14px;
+    font-family: sans-serif;
+    font-weight: bold;
+}</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="closeHistoryButton">
+    <property name="geometry">
+     <rect>
+      <x>125</x>
+      <y>390</y>
+      <width>150</width>
+      <height>35</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Закрыть</string>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QPushButton {
+    background-color: #E8D5A3;
+    color: black;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #D4C08A;
+}
+QPushButton:pressed {
+    background-color: #C2AB72;
+}</string>
+    </property>
+   </widget>
   </widget>
  </widget>
  <resources/>
