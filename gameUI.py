@@ -1,8 +1,9 @@
 import sys
 import os
 import random
+import copy
 import pandas as pd
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QStackedWidget, QVBoxLayout, QLabel, QPushButton
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QStackedWidget, QVBoxLayout, QLabel, QPushButton, QMessageBox
 from PyQt6.QtGui import QPixmap, QMovie
 from PyQt6 import uic
 
@@ -88,20 +89,19 @@ class AkinatorEngine:
             
         prev_char_count = len(self.df['Character'].unique()) if 'Character' in self.df.columns else 0
 
-        # Используем deepcopy, чтобы при откате назад данные гарантированно не были изменены по ссылке
-        state_snapshot = (
-            self.df.copy(deep=True), 
-            self.step, 
-            list(self.asked_questions), 
-            list(self.user_answers),
-            self.current_core_question, 
-            self.current_display_question, 
-            self.is_verification,
-            self.is_finished, 
-            self.result_message, 
-            self.guessed_character,
-            self.emotion
-        )
+        state_snapshot = {
+            'df': self.df.copy(deep=True), 
+            'step': self.step, 
+            'asked_questions': copy.deepcopy(self.asked_questions), 
+            'user_answers': copy.deepcopy(self.user_answers),
+            'current_core_question': self.current_core_question, 
+            'current_display_question': self.current_display_question, 
+            'is_verification': self.is_verification,
+            'is_finished': self.is_finished, 
+            'result_message': self.result_message, 
+            'guessed_character': self.guessed_character,
+            'emotion': self.emotion
+        }
         self.history.append(state_snapshot)
 
         if self.is_verification and self.current_core_question in self.asked_questions:
@@ -125,22 +125,23 @@ class AkinatorEngine:
         self.check_win_condition(remaining_characters, prev_char_count)
         self.step += 1
 
-    def undo(self) -> bool:  #все ещё ужасно работает
+    def undo(self) -> bool:
         if not self.history:
             return False 
             
         state = self.history.pop()
-        self.df = state[0].copy(deep=True)
-        self.step = state[1]
-        self.asked_questions = list(state[2])
-        self.user_answers = list(state[3])
-        self.current_core_question = state[4]
-        self.current_display_question = state[5]
-        self.is_verification = state[6]
-        self.is_finished = state[7]
-        self.result_message = state[8]
-        self.guessed_character = state[9]
-        self.emotion = state[10]
+        
+        self.df = state['df'].copy(deep=True)
+        self.step = state['step']
+        self.asked_questions = copy.deepcopy(state['asked_questions'])
+        self.user_answers = copy.deepcopy(state['user_answers'])
+        self.current_core_question = state['current_core_question']
+        self.current_display_question = state['current_display_question']
+        self.is_verification = state['is_verification']
+        self.is_finished = state['is_finished']
+        self.result_message = state['result_message']
+        self.guessed_character = state['guessed_character']
+        self.emotion = state['emotion']
         
         return True
 
@@ -148,7 +149,6 @@ class AkinatorEngine:
         curr_char_count = len(remaining_characters)
         diff = prev_char_count - curr_char_count
         
-        # Логика смены эмоций на основе того, как сильно сократился список персонажей
         if diff <= 2: 
             self.emotion = "hard"
         elif diff >= 50 or (prev_char_count > 0 and curr_char_count <= prev_char_count * 0.6): # Если убрали 50+ или больше 40%
@@ -228,28 +228,38 @@ class StartPage(QWidget):
         self.me.setScaledContents(True)
         self.me.setPixmap(me_pixmap)
 
+        self.historyFrame.hide()
+
         self.startButton.clicked.connect(self.start_new_game)
         self.infoButton.clicked.connect(self.open_history)
+        
+        self.closeHistoryButton.clicked.connect(self.close_history)
 
     def start_new_game(self):
         self.main_window.current_df = self.main_window.global_df.copy()
         self.main_window.show_game_page()
 
     def open_history(self):
-
         history_path = os.path.join(os.path.dirname(__file__), "history.txt")
-        
+    
         if os.path.exists(history_path):
             try:
-                os.startfile(history_path)
-            except AttributeError:
-                import subprocess, platform
-                if platform.system() == 'Darwin':       
-                    subprocess.call(('open', history_path))
-                else:                                   
-                    subprocess.call(('xdg-open', history_path))
+                with open(history_path, "r", encoding="utf-8") as f:
+                    history_text = f.read()
+                if not history_text.strip():
+                    history_text = "Файл истории пуст. Сыграйте хотя бы одну игру!"
+            except Exception as e:
+                history_text = f"Не удалось прочитать файл истории:\n{e}"
         else:
-            print("Файл history.txt еще не создан. Сыграйте хотя бы одну игру!")
+            history_text = "Файл history.txt еще не создан. Сыграйте хотя бы одну игру!"
+        
+        self.historyText.setPlainText(history_text)
+        
+        self.historyFrame.raise_()
+        self.historyFrame.show()
+
+    def close_history(self):
+        self.historyFrame.hide()
 
 class GamePage(QWidget):
     def __init__(self, main_window, parent=None):
