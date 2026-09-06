@@ -63,18 +63,21 @@ class AkinatorEngine:
             return None
             
         fi_series = retrain_model(self.df, step=self.step)
-        
-        if fi_series.empty or len(fi_series) == 0:
-            self.is_finished = True
-            self.result_message = "\nХмм... Кажется, я исчерпал все вопросы или не смог сузить круг персонажей."
-            return None
-            
         remaining_characters = self.df['Character'].unique() if 'Character' in self.df.columns else []
         
-        raw_question = get_question(fi_series, self.df, remaining_characters)
-        if not raw_question:
+        raw_question = None
+        if not fi_series.empty:
+            raw_question = get_question(fi_series, self.df, remaining_characters)
+            
+        # Если вопросы закончились или модель не нашла признаков, выбираем лидера по счёту
+        if fi_series.empty or not raw_question:
             self.is_finished = True
-            self.result_message = "\nНе осталось вопросов для разделения."
+            if '_score' in self.df.columns and not self.df.empty:
+                best_idx = self.df['_score'].idxmax()
+                self.guessed_character = self.df.loc[best_idx, 'Character']
+                self.result_message = f"Я думаю, это {self.guessed_character}!"
+            else:
+                self.result_message = "\nХмм... Кажется, я исчерпал все вопросы или не смог сузить круг персонажей."
             return None
 
         self.is_verification = raw_question.startswith("[Уточнение]")
