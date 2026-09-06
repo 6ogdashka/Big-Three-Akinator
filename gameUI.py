@@ -250,11 +250,11 @@ class StartPage(QWidget):
                 with open(history_path, "r", encoding="utf-8") as f:
                     history_text = f.read()
                 if not history_text.strip():
-                    history_text = "Файл истории пуст. Сыграйте хотя бы одну игру!"
+                    history_text = "тут Пусто!"
             except Exception as e:
                 history_text = f"Не удалось прочитать файл истории:\n{e}"
         else:
-            history_text = "Файл history.txt еще не создан. Сыграйте хотя бы одну игру!"
+            history_text = "тут Пусто"
         
         self.historyText.setPlainText(history_text)
         
