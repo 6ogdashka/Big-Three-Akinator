@@ -12,7 +12,6 @@ except ImportError:
 
 warnings.filterwarnings("ignore")
 
-# Логические группы вопросов (сохранены для справки и потенциальной группировки)
 QUESTION_GROUPS = {
     "Внешность и физические атрибуты": [
         "Ваш персонаж женского пола?",
@@ -212,8 +211,9 @@ def get_interest_point(vec1, vec2):
 def edit_df(
     df: pd.DataFrame, quest: str, ans: float, step: int = 1
 ) -> pd.DataFrame:
+  df = df.copy()
+  
   if "_score" not in df.columns:
-    df = df.copy()
     df["_score"] = 0.0
 
   score_map = {
@@ -276,7 +276,6 @@ def get_question(
   if fi_df.empty:
     return ""
 
-  # 1. Если персонажей мало (<= 30), переключаемся на чистую энтропию среди оставшихся с Softmax
   if 0 < len(remaining_chars) <= 30:
     sub_df = df[df["Character"].isin(remaining_chars)]
     feature_cols = [
@@ -292,7 +291,6 @@ def get_question(
         probs = exp_scores / np.sum(exp_scores)
         return np.random.choice(top_entropies.index, p=probs)
 
-  # 2. Берем допустимые валидные вопросы из fi_df
   valid_candidates = [(q, score) for q, score in fi_df.items() if q in df.columns and len(df[q].unique()) > 1]
   
   if not valid_candidates:
@@ -305,7 +303,6 @@ def get_question(
   if np.all(scores == scores[0]):
     return np.random.choice(questions)
 
-  # 3. Применяем Softmax с температурой для динамического выбора среди лучших
   scores_shifted = scores - np.max(scores)
   exp_scores = np.exp(scores_shifted / temperature)
   probabilities = exp_scores / np.sum(exp_scores)
