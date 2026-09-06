@@ -15,6 +15,10 @@
 ```bash
 git clone git@github.com:6ogdashka/Big-Three-Akinator.git
 ```
+or
+```bash
+git clone https://github.com/6ogdashka/Big-Three-Akinator.git
+```
 
 Перейдите в скачанную рабочую директорию:
 
