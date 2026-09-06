@@ -216,18 +216,40 @@ class StartPage(QWidget):
         super().__init__(parent)
         self.main_window = main_window
         
-        layout = QVBoxLayout(self)
-        label = QLabel("Добро пожаловать в Акинатор!\n(Это временная StartPage)", self)
-        btn = QPushButton("Начать игру", self)
-        
-        btn.clicked.connect(self.start_new_game)
-        layout.addWidget(label)
-        layout.addWidget(btn)
+        ui_path = os.path.join(os.path.dirname(__file__), "startpage.ui")
+        uic.loadUi(ui_path, self)
+
+        self.movie = QMovie("photo/ezgif-83f587d9ce2dc45e.gif")
+        self.back.setScaledContents(True)
+        self.back.setMovie(self.movie)
+        self.movie.start()
+
+        me_pixmap = QPixmap("photo/standart.png")
+        self.me.setScaledContents(True)
+        self.me.setPixmap(me_pixmap)
+
+        self.startButton.clicked.connect(self.start_new_game)
+        self.infoButton.clicked.connect(self.open_history)
 
     def start_new_game(self):
         self.main_window.current_df = self.main_window.global_df.copy()
         self.main_window.show_game_page()
 
+    def open_history(self):
+
+        history_path = os.path.join(os.path.dirname(__file__), "history.txt")
+        
+        if os.path.exists(history_path):
+            try:
+                os.startfile(history_path)
+            except AttributeError:
+                import subprocess, platform
+                if platform.system() == 'Darwin':       
+                    subprocess.call(('open', history_path))
+                else:                                   
+                    subprocess.call(('xdg-open', history_path))
+        else:
+            print("Файл history.txt еще не создан. Сыграйте хотя бы одну игру!")
 
 class GamePage(QWidget):
     def __init__(self, main_window, parent=None):
