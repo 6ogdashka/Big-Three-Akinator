@@ -29,10 +29,10 @@
   <widget class="QLabel" name="me">
    <property name="geometry">
     <rect>
-     <x>-60</x>
-     <y>20</y>
-     <width>650</width>
-     <height>550</height>
+     <x>-20</x>
+     <y>80</y>
+     <width>550</width>
+     <height>450</height>
     </rect>
    </property>
    <property name="text">
@@ -52,7 +52,24 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true"/>
+    <string notr="true"> QPushButton {
+           background-color:  #F5E6B8;
+           color: black;
+           border-radius: 12px;
+           padding: 10px 20px;
+           font-size: 25px;
+          border: none;
+          font-weight:bold;
+          padding-top: 5px;
+           padding-bottom: 30px;
+           text-align: center;
+        }
+        QPushButton:hover {
+          background-color: #E8D5A3;
+        }
+        QPushButton:pressed {
+         background-color: #D4C08A;
+        }</string>
    </property>
    <property name="text">
     <string>Брось нам вызов</string>
@@ -67,8 +84,25 @@
      <height>41</height>
     </rect>
    </property>
+   <property name="styleSheet">
+    <string notr="true">QPushButton {
+    background-color: #F5E6B8;
+    color: black;
+    border-radius: 12px;
+    padding: 10px 20px;
+    font-size: 14px;
+    border: none;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #E8D5A3;
+}
+QPushButton:pressed {
+    background-color: #D4C08A;
+}</string>
+   </property>
    <property name="text">
-    <string>Прогресс</string>
+    <string>История</string>
    </property>
   </widget>
   <widget class="QLabel" name="label">
@@ -81,10 +115,7 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true">background-color: #F5E6B8; 
-color: black;
- border-radius: 12px;
- </string>
+    <string notr="true"/>
    </property>
    <property name="text">
     <string>Проект выполнен Красненко Богданом и Футрук Ириной</string>
