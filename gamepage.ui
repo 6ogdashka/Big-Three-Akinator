@@ -59,10 +59,12 @@
    </property>
    <property name="styleSheet">
     <string notr="true">QFrame#frame {
-    background-color: rgba(125, 60, 152, 180); /* Фиолетовый цвет с прозрачностью (последнее число - прозрачность от 0 до 255) */
-    border: 2px solid #9b59b6;                 /* Опционально: аккуратная фиолетовая рамка */
+    background-color:  #F5E6B8;
+    border: 2px black;                 /* Опционально: аккуратная фиолетовая рамка */
     border-radius: 10px;                       /* Скругление углов */
-}</string>
+}
+
+</string>
    </property>
    <property name="frameShape">
     <enum>QFrame::Shape::StyledPanel</enum>
@@ -73,8 +75,8 @@
    <widget class="QTextEdit" name="QUESTION">
     <property name="geometry">
      <rect>
-      <x>6</x>
-      <y>6</y>
+      <x>0</x>
+      <y>30</y>
       <width>488</width>
       <height>64</height>
      </rect>
@@ -87,6 +89,16 @@
     </property>
     <property name="mouseTracking">
      <bool>true</bool>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QTextEdit {
+    background-color: transparent;
+    font-weight:bold;
+    border: none;
+    border-bottom: 2px solid black;
+    color: black;
+}
+</string>
     </property>
     <property name="readOnly">
      <bool>true</bool>
@@ -107,6 +119,19 @@
       <verstretch>0</verstretch>
      </sizepolicy>
     </property>
+    <property name="styleSheet">
+     <string notr="true"> QPushButton {
+           background-color:  #E8D5A3;
+           color: black;
+          font-weight:bold;
+        }
+        QPushButton:hover {
+          background-color: #D4C08A;
+        }
+        QPushButton:pressed {
+         background-color: #BEAA73;
+        }</string>
+    </property>
     <property name="text">
      <string>Скорее Да</string>
     </property>
@@ -125,6 +150,19 @@
       <horstretch>0</horstretch>
       <verstretch>0</verstretch>
      </sizepolicy>
+    </property>
+    <property name="styleSheet">
+     <string notr="true"> QPushButton {
+           background-color:  #E8D5A3;
+           color: black;
+          font-weight:bold;
+        }
+        QPushButton:hover {
+          background-color: #D4C08A;
+        }
+        QPushButton:pressed {
+         background-color: #BEAA73;
+        }</string>
     </property>
     <property name="text">
      <string>Скорее Нет</string>
@@ -145,6 +183,19 @@
       <verstretch>0</verstretch>
      </sizepolicy>
     </property>
+    <property name="styleSheet">
+     <string notr="true"> QPushButton {
+           background-color:  #E8D5A3;
+           color: black;
+          font-weight:bold;
+        }
+        QPushButton:hover {
+          background-color: #D4C08A;
+        }
+        QPushButton:pressed {
+         background-color: #BEAA73;
+        }</string>
+    </property>
     <property name="text">
      <string>Да</string>
     </property>
@@ -164,6 +215,19 @@
       <verstretch>0</verstretch>
      </sizepolicy>
     </property>
+    <property name="styleSheet">
+     <string notr="true"> QPushButton {
+           background-color:  #E8D5A3;
+           color: black;
+          font-weight:bold;
+        }
+        QPushButton:hover {
+          background-color: #D4C08A;
+        }
+        QPushButton:pressed {
+         background-color: #BEAA73;
+        }</string>
+    </property>
     <property name="text">
      <string>Не знаю</string>
     </property>
@@ -182,6 +246,19 @@
       <horstretch>0</horstretch>
       <verstretch>0</verstretch>
      </sizepolicy>
+    </property>
+    <property name="styleSheet">
+     <string notr="true"> QPushButton {
+           background-color:  #E8D5A3;
+           color: black;
+          font-weight:bold;
+        }
+        QPushButton:hover {
+          background-color: #D4C08A;
+        }
+        QPushButton:pressed {
+         background-color: #BEAA73;
+        }</string>
     </property>
     <property name="text">
      <string>Нет</string>
