@@ -37,10 +37,12 @@
    </property>
    <property name="styleSheet">
     <string notr="true">QFrame#frame {
-    background-color: rgba(125, 60, 152, 180); /* Фиолетовый цвет с прозрачностью (последнее число - прозрачность от 0 до 255) */
-    border: 2px solid #9b59b6;                 /* Опционально: аккуратная фиолетовая рамка */
+    background-color:  #F5E6B8;
+    border: 2px black;                 /* Опционально: аккуратная фиолетовая рамка */
     border-radius: 10px;                       /* Скругление углов */
-}</string>
+}
+
+</string>
    </property>
    <property name="frameShape">
     <enum>QFrame::Shape::StyledPanel</enum>
@@ -70,6 +72,16 @@
       <height>70</height>
      </rect>
     </property>
+    <property name="styleSheet">
+     <string notr="true">QTextEdit {
+    background-color: transparent;
+    font-weight:bold;
+    border: none;
+    border-bottom: 2px solid black;
+    color: black;
+}
+</string>
+    </property>
    </widget>
    <widget class="QPushButton" name="pushButton">
     <property name="geometry">
@@ -79,6 +91,19 @@
       <width>135</width>
       <height>35</height>
      </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true"> QPushButton {
+           background-color:  #E8D5A3;
+           color: black;
+          font-weight:bold;
+        }
+        QPushButton:hover {
+          background-color: #D4C08A;
+        }
+        QPushButton:pressed {
+         background-color: #BEAA73;
+        }</string>
     </property>
     <property name="text">
      <string>Да</string>
@@ -92,6 +117,19 @@
       <width>135</width>
       <height>35</height>
      </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true"> QPushButton {
+           background-color:  #E8D5A3;
+           color: black;
+          font-weight:bold;
+        }
+        QPushButton:hover {
+          background-color: #D4C08A;
+        }
+        QPushButton:pressed {
+         background-color: #BEAA73;
+        }</string>
     </property>
     <property name="text">
      <string>Нет</string>
