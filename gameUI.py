@@ -192,7 +192,7 @@ class AkinatorEngine:
                     self.result_message = f"\n🎉 Я разгадал! Это персонаж: **{self.guessed_character}**\n(Сходство: {max_sim:.2f}, Отрыв от остальных: {delta:.2f})"
                     return
 
-        if self.step >= 20:
+        if self.step >= 30:
             self.is_finished = True
             print("\n🤔 Достигнут лимит вопросов (20 шагов). Выбираю лучшего из оставшихся...")
             self._finalize_best_match(remaining_characters)
@@ -349,7 +349,7 @@ class EndPage(QWidget):
         self.BACKGROUND.setMovie(self.movie)
         self.movie.start()
 
-        winner_pixmap = QPixmap("photo/Naruto_newshot.png")
+        winner_pixmap = QPixmap("photo/дейзиииииииии.png")
         self.WINNER.setScaledContents(True)
         self.WINNER.setPixmap(winner_pixmap)
 
@@ -371,16 +371,15 @@ class EndPage(QWidget):
             with open("history.txt", "a", encoding="utf-8") as f:
                 f.write(f"Угадан персонаж: {self.guessed_character} Ход: {self.step}\n")
             self.main_window.show_start_page()
-            
         elif self.state == 1:
             self.main_window.restart_game_without(self.guessed_character)
-
+            
     def on_no_clicked(self):
         if self.state == 0:
             self.state = 1
             self.textEdit.setPlainText("Желаете ли вы продолжить поиск?")
             
-        elif self.state == 1:
+        elif self.state == 0:
             self.main_window.show_start_page()
 
 
