@@ -38,10 +38,9 @@
    <property name="styleSheet">
     <string notr="true">QFrame#frame {
     background-color:  #F5E6B8;
-    border: 2px black;                 /* Опционально: аккуратная фиолетовая рамка */
-    border-radius: 10px;                       /* Скругление углов */
+    border: 2px black;                 
+    border-radius: 10px;                       
 }
-
 </string>
    </property>
    <property name="frameShape">
